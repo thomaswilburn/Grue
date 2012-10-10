@@ -162,7 +162,10 @@ Bag.prototype.query = function(selectors) {
 The base type for all other objects in the World is the Thing. You extend off
 from Thing by calling Thing.mutate() and passing in a type ID string and a
 constructor function unique to your type (both of these are optional). Then
-you can add properties to your new prototype at your discretion.
+you can add properties to your new prototype at your discretion. Yes,
+everything ends up shallowly inheriting from Thing, but it's probably not a
+good idea to be building deep inheritance chains in your interactive fiction
+anyway. There's always mixins, if you need them.
 
 Things come with some basic shared utility methods:
 
