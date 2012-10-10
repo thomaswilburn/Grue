@@ -9,7 +9,7 @@ var output = document.querySelector('#output');
 zork.io.attach(input, output);
 
 zork.parser.addRule(/(look|examine|describe) (at )*([\w\s]+)/i, function(match) {
-  var awake = field.contents.invoke('nudge', match[3]).shift();
+  var awake = field.contents.invoke('nudge', match[3]).first();
   if (awake) {
     awake.ask('look');
   }
@@ -17,7 +17,7 @@ zork.parser.addRule(/(look|examine|describe) (at )*([\w\s]+)/i, function(match) 
 
 zork.parser.addRule(/(open|close) ([\s\w]+)/i, function(match) {
   var verb = match[1];
-  var awake = field.contents.invoke('nudge', match[2]).shift();
+  var awake = field.contents.invoke('nudge', match[2]).first();
   if (awake) {
     awake.ask(verb);
   }
@@ -30,9 +30,14 @@ zork.parser.addRule(/take (\w+)(?: from )*(\w*)/, function(match) {
     allTheThings = allTheThings.concat(c.contents.toArray());
   });
   allTheThings = zork.Bag(allTheThings);
-  var portable = allTheThings.query('portable=true').at(0);
+  var portable = allTheThings.query('portable=true').first();
   portable.parent.remove(portable);
   inventory.add(portable);
+});
+
+zork.parser.addRule(/read ([\w\s]+\w)/, function(match) {
+  var awake = zork.getLocalThings().invoke('nudge', match[1]).first();
+  awake.ask('read');
 });
 
 var inventory = zork.Container();

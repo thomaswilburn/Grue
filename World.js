@@ -11,16 +11,14 @@ When constructing a Bag, you can pass any number of arrays or other Bags, and
 it will combine them all into one flat collection.
 
 */
-var Bag = function() {
+var Bag = function(array) {
   if (!(this instanceof Bag)) return new Bag(array);
-  var args = Array.prototype.slice(arguments);
   this.items = [];
-  for (var i = 0; i < args.length; i++) {
-    var package = args[i];
-    if (typeof package.toArray != 'undefined') {
-      package = package.toArray();
+  if (array) {
+    if (typeof array.toArray != 'undefined') {
+      array = array.toArray();
     }
-    this.items = this.items.concat(package);
+    this.items = this.items.concat(array);
   }
   this.length = this.items.length;
 };
@@ -37,6 +35,9 @@ Bag.prototype.remove = function(item) {
   this.items = remaining;
   this.length = this.items.length;
   return this;
+};
+Bag.prototype.first = function() {
+  return this.items[0];
 };
 Bag.prototype.at = function(n) {
   return this.items[n];
@@ -74,7 +75,7 @@ Bag.prototype.invoke = function(name) {
       map.push(result);
     }
   }
-  return map;
+  return new Bag(map);
 }
 Bag.prototype.each = function(f) {
   for (var i = 0; i < this.items.length; i++) {
@@ -264,7 +265,7 @@ Thing.prototype = {
       return response;
     } else {
       var response = this.cues[key];
-      if (this.world) this.world.print(response);
+      this.say(response);
       return response;
     }
   },
@@ -354,11 +355,17 @@ var Container = Thing.mutate('Container', function() {
   this.contents = new Bag();
   this.open = false;
   this.proxy('contents', function() {
-    console.log(this);
     if (this.open) {
       return this.contents;
     }
     return [];
+  });
+  this.cue('open', function() {
+    this.open = true;
+    this.say('Opened.');
+  });
+  this.cue('close', function() {
+    this.open = false;
   })
 });
 Container.prototype.add = function(item) {
