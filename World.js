@@ -245,6 +245,25 @@ Thing.prototype = {
   }
 }
 
+/*
+
+Why mutate() all the Things? A couple of reasons:
+
+  * We want to inherit from Thing using good JavaScript prototypes, but calling
+  Thing.call(this) for our super-constructor is annoying--as is the need to
+  constantly check whether the constructor is being called via "new" or via
+  the factory. Using mutate(), we make sure that a fresh type is constructed,
+  but the constructor boilerplate is still abstracted away.
+
+  JavaScript constructor patterns are terrible. This library aims to be, as
+  much as possible, a tool for people who are not JavaScript gurus. As a
+  result, we want to isolate users from the brittleness of constructor
+  function/prototype/prototype.constructor as much as possible. Using mutate()
+  (and, more often, using the factory functions via the World object) keeps
+  the inheritable madness to a minimum.
+
+*/
+
 Thing.mutate = function(tag, f) {
   if (typeof tag == 'function') {
     f = tag;
@@ -254,7 +273,7 @@ Thing.mutate = function(tag, f) {
   var Type = function(world) {
     if (!(this instanceof Type)) {
       if (this instanceof World) return new Type(this);
-      return new C();
+      return new Type();
     }
     Thing.call(this);
     f.call(this);
@@ -319,6 +338,14 @@ var Scenery = Thing.mutate('Scenery', function() {
   this.movable = false;
 });
 
+
+/*
+
+And here we are, finally, at the World. You instantiate one (or more) of these
+for your game, and then it provides factory access to the different object
+types, as well as some input and output utility functions.
+
+*/
 var World = function() {
   this.things = [];
   this.player = null;
