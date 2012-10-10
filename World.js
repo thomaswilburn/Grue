@@ -7,15 +7,27 @@ filtering and mapped get/set operations. Many operations on Bags are
 chainable. You can also query Bags by property values, similar to a bracket-
 less CSS attribute selector.
 
+When constructing a Bag, you can pass any number of arrays or other Bags, and
+it will combine them all into one flat collection.
+
 */
-var Bag = function(array) {
+var Bag = function() {
   if (!(this instanceof Bag)) return new Bag(array);
-  this.items = array || [];
+  var args = Array.prototype.slice(arguments);
+  this.items = [];
+  for (var i = 0; i < args.length; i++) {
+    var package = args[i];
+    if (typeof package.toArray != 'undefined') {
+      package = package.toArray();
+    }
+    this.items = this.items.concat(package);
+  }
   this.length = this.items.length;
 };
 Bag.prototype.push = function() {
   this.items.push.apply(this.items, Array.prototype.slice.call(arguments));
   this.length = this.items.length;
+  return this;
 };
 Bag.prototype.remove = function(item) {
   var remaining = [];
@@ -24,8 +36,9 @@ Bag.prototype.remove = function(item) {
   }
   this.items = remaining;
   this.length = this.items.length;
+  return this;
 };
-Bag.prototype.getAt = function(n) {
+Bag.prototype.at = function(n) {
   return this.items[n];
 };
 Bag.prototype.filter = function(f) {
@@ -48,6 +61,7 @@ Bag.prototype.mapSet = function(p, value) {
   for (var i = 0; i < this.items.length; i++) {
     this.items[i][p] = value;
   }
+  return this;
 };
 Bag.prototype.invoke = function(name) {
   var args = Array.prototype.slice.call(arguments, 1);
@@ -66,10 +80,24 @@ Bag.prototype.each = function(f) {
   for (var i = 0; i < this.items.length; i++) {
     f(this.items[i]);
   }
+  return this;
 };
 Bag.prototype.toArray = function() {
   return this.items;
 };
+Bag.prototype.combine = function() {
+  var args = Array.prototype.slice.call(arguments);
+  for (var i = 0; i < args.length; i++) {
+    var adding = args[i];
+    if (adding instanceof Bag) {
+      this.items = this.items.concat(adding.items);
+    } else {
+      this.items = this.items.concat(adding);
+    }
+    this.length = this.items.length;
+    return this;
+  }
+}
 /*
 
 We only query on attributes--it saves selector complexity. The supported
@@ -199,7 +227,7 @@ Things come with some basic shared utility methods:
 */
 var Thing = function(world) {
   this.classes = [];
-  this.proxy = {};
+  this.proxies = {};
   this.cues = {
     'look': function() {
       this.say(this.description);
@@ -217,8 +245,8 @@ Thing.prototype = {
   description: "",
   get: function(key) {
     if (!this[key]) return null;
-    if (this.proxy[key]) {
-      return this.proxy[key].call(this);
+    if (this.proxies[key]) {
+      return this.proxies[key].call(this);
     }
     if (typeof this[key] == 'function') {
       return this[key]();
@@ -227,7 +255,7 @@ Thing.prototype = {
     }
   },
   proxy: function(key, f) {
-    this.proxy[key] = f;
+    this.proxies[key] = f;
   },
   ask: function(key) {
     if (!this.cues[key]) return "";
@@ -325,6 +353,13 @@ Room.prototype.remove = function(item) {
 var Container = Thing.mutate('Container', function() {
   this.contents = new Bag();
   this.open = false;
+  this.proxy('contents', function() {
+    console.log(this);
+    if (this.open) {
+      return this.contents;
+    }
+    return [];
+  })
 });
 Container.prototype.add = function(item) {
   this.contents.push(item);
@@ -419,13 +454,16 @@ var Parser = function(world, console) {
   this.rules = [];
 };
 Parser.prototype = {
+  errorMessage: "I don't understand that.",
   attach: function(console) {
     this.console = console;
     console.onRead = this.input.bind(this);
   },
   input: function(line) {
     var sentence = this.evaluate(line);
-    console.log(sentence);
+    if (sentence == false) {
+      this.console.write(this.errorMessage);
+    }
   },
   /*
 
@@ -487,9 +525,11 @@ types, as well as some input and output utility functions.
 */
 var World = function() {
   this.things = [];
+  this.asLocal = [];
   this.player = new Player();
   this.io = new Console();
   this.parser = new Parser(this, this.io);
+  this.currentRoom = null;
 };
 World.prototype = {
   Bag: Bag,
@@ -502,6 +542,23 @@ World.prototype = {
   Scenery: Scenery,
   print: function(line) {
     this.io.write(line);
+  },
+  considerLocal: function(bag) {
+    this.asLocal.push(bag);
+  },
+  getLocalThings: function() {
+    var things = new Bag(this.asLocal);
+    if (this.currentRoom) {
+      things.combine(this.currentRoom.contents);
+    }
+    var len = things.length;
+    for (var i = 0; i < len; i++) {
+      var item = things.at(i);
+      if (item instanceof Container || item instanceof Supporter) {
+        things.combine(item.get('contents'));
+      }
+    }
+    return things;
   }
 };
 
