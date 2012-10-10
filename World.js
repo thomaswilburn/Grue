@@ -11,9 +11,11 @@ less CSS attribute selector.
 var Bag = function(array) {
   if (!(this instanceof Bag)) return new Bag(array);
   this.items = array || [];
+  this.length = this.items.length;
 };
 Bag.prototype.push = function() {
-  this.items.push(Array.prototype.slice.call(arguments));
+  this.items.push.apply(this.items, Array.prototype.slice.call(arguments));
+  this.length = this.items.length;
 };
 Bag.prototype.remove = function(item) {
   var remaining = [];
@@ -21,6 +23,7 @@ Bag.prototype.remove = function(item) {
     if (this.items[i] != item) remaining.push(this.items[i]);
   }
   this.items = remaining;
+  this.length = this.items.length;
 };
 Bag.prototype.getAt = function(n) {
   return this.items[n];
@@ -51,8 +54,13 @@ Bag.prototype.invoke = function(name) {
   var map = [];
   for (var i = 0; i < this.items.length; i++) {
     var item = this.items[i];
-    map[i] = item[name].apply(item, args);
+    if (typeof item[name] != 'function') continue;
+    var result = item[name].apply(item, args);
+    if (typeof result != 'undefined') {
+      map.push(result);
+    }
   }
+  return map;
 }
 Bag.prototype.each = function(f) {
   for (var i = 0; i < this.items.length; i++) {
@@ -182,7 +190,8 @@ Things come with some basic shared utility methods:
     ask() should return a string, while get() can return anything.
 
   - nudge() - feed this an object string from the parser, and it will respond
-    true/false depending on whether the object "answers" to that name.
+    with itself if the object "answers" to that name. For simplicity's sake, you
+    can just set this.pattern and use the default nudge function.
 
   - say() - output to the browser or UI console via the World. Basically used
     as a local output method.
@@ -193,9 +202,10 @@ var Thing = function(world) {
   this.proxy = {};
   this.cues = {
     'look': function() {
-      return this.description;
+      this.say(this.description);
     }
   };
+  this.pattern = /abcdefg/i;
 
   if (world) {
     this.world = world;
@@ -241,7 +251,8 @@ Thing.prototype = {
     }
   },
   nudge: function(input) {
-    return /override this/.test(input);
+    var result = this.pattern.test(input);
+    if (result) return this;
   }
 }
 
@@ -338,6 +349,134 @@ var Scenery = Thing.mutate('Scenery', function() {
   this.movable = false;
 });
 
+/*
+
+The Console exists (not to be confused with the browser console) to direct
+input into the parser and handle output from it. You don't need to directly
+instantiate a console unless you really want to--the World will create one as
+its "io" property, and then you can wire it up to an input field and an
+element for output.
+
+*/
+var Console = function(input, output) {
+  if (input && output) this.attach(input, output);
+  this.onKey = this.onKey.bind(this);
+  this.memory = [];
+  this.memoryPointer = 0;
+};
+Console.prototype = {
+  tagName: "div",
+  className: "console-line",
+  memory: null,
+  memoryPointer: 0,
+  attach: function(input, output) {
+    if (this.input) {
+      this.input.removeEventListener('keyup', this.onKey);
+    };
+    this.input = input;
+    this.input.addEventListener('keyup', this.onKey);
+
+    this.output = output;
+  },
+  onKey: function(e) {
+    switch (e.keyCode) {
+
+      case 13:
+        var input = this.input.value;
+        this.memory.unshift(input);
+        this.memoryPointer = 0;
+        this.read(input);
+        this.input.value = "";
+      break;
+
+      case 38: //up
+        this.input.value = this.memory[this.memoryPointer] || this.input.value;
+        this.memoryPointer++;
+      break;
+    }
+  },
+  read: function(line) {
+    if (this.onRead) this.onRead(line);
+  },
+  write: function(text) {
+    var tag = document.createElement(this.tagName);
+    tag.className = this.className;
+    tag.innerHTML = text;
+    this.output.appendChild(tag);
+  }
+}
+
+/*
+
+You'll rarely interact with the Parser directly, although it's there if you
+need to. Instead, the World instantiates a parser for itself, and you'll use
+its utility methods to add command mappings indirectly.
+
+*/
+var Parser = function(world, console) {
+  this.world = world;
+  if (console) this.attach(console);
+  this.rules = [];
+};
+Parser.prototype = {
+  attach: function(console) {
+    this.console = console;
+    console.onRead = this.input.bind(this);
+  },
+  input: function(line) {
+    var sentence = this.evaluate(line);
+    console.log(sentence);
+  },
+  /*
+
+    Rule definitions consist of two parts: a regular expression pattern used
+    to parse out the command, and a translation function that does something
+    based on the parts that are passed back. So you might have a look command:
+
+    /(look|examine|describe)\s(at\s)*([\w\s])/i
+
+    and then a translator function that turns it into an action:
+
+    function(parts) {
+      var verb = 'look';
+      var object = parts[3];
+      //gather items that respond to that name
+      var prospects = world.localThings().invoke('nudge', object);
+      if (prospects.length > 1) {
+        return "I'm not sure which '" + object + "' you mean.";
+      } else if (prospects.length) {
+        return prospects.getAt(0).ask(verb);
+      }
+      return false;
+    }
+
+  */
+  addRule: function(pattern, translator) {
+    if (typeof pattern == 'string') {
+      pattern = new RegExp(pattern);
+    }
+    this.rules.push({
+      pattern: pattern,
+      translate: translator
+    });
+  },
+  /*
+
+  Rules are evaluated in first-in, first-out order. If no matching rule is
+  found, it returns false.
+
+  */
+  evaluate: function(input) {
+    for (var i = 0; i < this.rules.length; i++) {
+      var rule = this.rules[i];
+      var matches = rule.pattern.exec(input);
+      if (matches) {
+        return rule.translate(matches);
+      }
+    }
+    return false;
+  }
+}
 
 /*
 
@@ -348,7 +487,9 @@ types, as well as some input and output utility functions.
 */
 var World = function() {
   this.things = [];
-  this.player = null;
+  this.player = new Player();
+  this.io = new Console();
+  this.parser = new Parser(this, this.io);
 };
 World.prototype = {
   Bag: Bag,
@@ -359,9 +500,8 @@ World.prototype = {
   Container: Container,
   Supporter: Supporter,
   Scenery: Scenery,
-  parse: function() {},
   print: function(line) {
-    console.log(line);
+    this.io.write(line);
   }
 };
 
