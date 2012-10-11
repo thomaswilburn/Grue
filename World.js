@@ -468,6 +468,8 @@ var Console = function(input, output) {
 Console.prototype = {
   tagName: "div",
   className: "console-line",
+  echoClass: "console-echo",
+  echoQuote: "> ",
   memory: null,
   memoryPointer: 0,
   attach: function(input, output) {
@@ -497,12 +499,13 @@ Console.prototype = {
     }
   },
   read: function(line) {
+    this.write(line, true);
     if (this.onRead) this.onRead(line);
   },
-  write: function(text) {
+  write: function(text, echo) {
     var tag = document.createElement(this.tagName);
-    tag.className = this.className;
-    tag.innerHTML = text;
+    tag.className = echo ? [this.className, this.echoClass].join(' ') : this.className;
+    tag.innerHTML = echo ? this.echoQuote + text : text;
     this.output.appendChild(tag);
     if (this.onUpdate) {
       this.onUpdate();
