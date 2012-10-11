@@ -180,7 +180,7 @@ Bag.prototype.query = function(selectors) {
         break;
       } else if (s.operator) {
         var f = tests[s.operator] || tests.fail;
-        if (!f(item[s.key], value)) {
+        if (!f(item[s.key], s.value)) {
           hit = false;
           break;
         }
@@ -219,7 +219,7 @@ Things come with some basic shared utility methods:
 
   - nudge() - feed this an object string from the parser, and it will respond
     with itself if the object "answers" to that name. For simplicity's sake, you
-    can just set this.pattern and use the default nudge function. You'll often 
+    can just set this.pattern and use the default nudge function. You'll often
     invoke nudge() on a Bag of objects to figure out if they respond to a given
     parser input.
 
@@ -245,6 +245,16 @@ var Thing = function(world) {
 Thing.prototype = {
   name: "",
   description: "",
+  /*
+
+  background is the first of a series of default properties we should decide
+  to have (or not to have). I would love to have these loaded from somewhere
+  else, but I haven't figured that out yet. Worst case scenario, you load
+  these onto Thing.prototype before instantiating your world.
+
+  */
+  background: false,
+
   get: function(key) {
     if (!this[key]) return null;
     if (this.proxies[key]) {
@@ -338,11 +348,11 @@ var Region = Thing.mutate('Region', function() {
 var Room = Thing.mutate('Room', function() {
   this.contents = new Bag();
   this.cue('contents', function() {
-    var indent = '\n  ';
-    return indent + this.get('contents').query('[background=false]').getAll('long').join(indent);
+    var indent = '<li>';
+    return "In this area: <ul>" + indent + this.get('contents').query('type!=Scenery').mapGet('name').join(indent) + "</ul>";
   });
   this.cue('look', function() {
-    this.say('description');
+    this.say(this.description);
     this.say(this.ask('contents'));
   });
 });
@@ -353,16 +363,20 @@ Room.prototype.add = function(item) {
 Room.prototype.remove = function(item) {
   this.contents.remove(item);
   item.parent = null;
-}
+};
+Room.prototype.query = function(selector) {
+  return this.contents.query(selector);
+};
 
 var Container = Thing.mutate('Container', function() {
   this.contents = new Bag();
   this.open = false;
+  this.preposition = "Inside: "
   this.proxy('contents', function() {
     if (this.open) {
       return this.contents;
     }
-    return [];
+    return new Bag();
   });
   this.cue('open', function() {
     this.open = true;
@@ -370,6 +384,16 @@ var Container = Thing.mutate('Container', function() {
   });
   this.cue('close', function() {
     this.open = false;
+  });
+  this.cue('contents', function() {
+    var contents = this.get('contents');
+    if (!contents.length) return "";
+    var indent = '<li>';
+    return this.preposition + "<ul>" + indent + this.get('contents').query('type!=Scenery').mapGet('name').join(indent) + "</ul>";
+  });
+  this.cue('look', function() {
+    this.say(this.description);
+    this.say(this.ask('contents'));
   });
 });
 Container.prototype.add = function(item) {
@@ -385,6 +409,7 @@ var Person = Thing.mutate('Person');
 
 var Player = Thing.mutate('Player', function() {
   this.inventory = new Container();
+  this.inventory.preposition = "In your inventory:";
   this.inventory.open = true;
 });
 
@@ -459,7 +484,11 @@ Console.prototype = {
     tag.className = this.className;
     tag.innerHTML = text;
     this.output.appendChild(tag);
-  }
+    if (this.onUpdate) {
+      this.onUpdate();
+    }
+  },
+  onUpdate: null
 }
 
 /*
@@ -522,7 +551,7 @@ Parser.prototype = {
   /*
 
   Rules are evaluated in first-in, first-out order. If no matching rule is
-  found, it returns false. Rule translation functions are called in the 
+  found, it returns false. Rule translation functions are called in the
   context of the world.
 
   */
@@ -555,8 +584,8 @@ var World = function() {
 };
 World.prototype = {
   Bag: Bag,
-  Thing: Thing.mutate('Thing'), //for base construction
-  mutateThing: Thing.mutate, //for custom construction
+  Thing: Thing,
+  NewThing: Thing.mutate('Thing'),
   Region: Region,
   Room: Room,
   Player: Player,
