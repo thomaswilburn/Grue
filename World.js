@@ -349,7 +349,6 @@ var Region = Thing.mutate('Region', function() {
 
 var Room = Thing.mutate('Room', function() {
   this.contents = new Bag();
-  this.portals = new Bag();
   this.cue('contents', function() {
     var contents = this.get('contents').query('type!=Scenery');
     if (contents.length) {
@@ -459,7 +458,7 @@ var Scenery = Thing.mutate('Scenery', function() {
 
 /*
 
-The Console exists (not to be confused with the browser console) to direct
+The Console (not to be confused with the browser console) exists to direct
 input into the parser and handle output from it. You don't need to directly
 instantiate a console unless you really want to--the World will create one as
 its "io" property, and then you can wire it up to an input field and an
@@ -545,12 +544,12 @@ Parser.prototype = {
   /*
 
   Rule definitions consist of two parts: a regular expression pattern used
-  to parse out the command, and a translation function that does something
+  to parse out the command, and a responder function that does something
   based on the parts that are passed back. So you might have a look command:
 
   /(look|examine|describe)\s(at\s)*([\w\s])/i
 
-  and then a translator function that turns it into an action:
+  and then a responder function that turns it into an action:
 
   function(parts) {
     var verb = 'look';
@@ -566,20 +565,20 @@ Parser.prototype = {
   }
 
   */
-  addRule: function(pattern, translator) {
+  addRule: function(pattern, responder) {
     if (typeof pattern == 'string') {
       pattern = new RegExp(pattern);
     }
     this.rules.push({
       pattern: pattern,
-      translate: translator
+      responder: responder
     });
   },
   /*
 
   Rules are evaluated in first-in, first-out order. If no matching rule is
-  found, it returns false. Rule translation functions are called in the
-  context of the world.
+  found, it returns false. Rule response functions are called in the
+  context of the world (this == the world).
 
   */
   evaluate: function(input) {
@@ -587,7 +586,7 @@ Parser.prototype = {
       var rule = this.rules[i];
       var matches = rule.pattern.exec(input);
       if (matches) {
-        return rule.translate.call(this.world, matches);
+        return rule.responder.call(this.world, matches);
       }
     }
     return false;
@@ -611,8 +610,8 @@ var World = function() {
 };
 World.prototype = {
   Bag: Bag,
-  Thing: Thing,
-  NewThing: Thing.mutate('Thing'),
+  Thing: Thing.mutate('Thing'), // Exposed to create plain "Things"
+  mutate: Thing.mutate, // Exposed for creating new Things--needs to be cleaned up for real factory creation.
   Region: Region,
   Room: Room,
   Player: Player,
