@@ -32,16 +32,14 @@ zork.parser.addRule(/take (\w+)(?: from )*(\w*)/, function(match) {
   allTheThings = zork.Bag(allTheThings);
   var portable = allTheThings.query('portable=true').first();
   portable.parent.remove(portable);
-  inventory.add(portable);
+  console.log(this);
+  this.player.inventory.add(portable);
 });
 
 zork.parser.addRule(/read ([\w\s]+\w)/, function(match) {
   var awake = zork.getLocalThings().invoke('nudge', match[1]).first();
   awake.ask('read');
 });
-
-var inventory = zork.Container();
-zork.considerLocal(inventory);
 
 var field = zork.Room();
 field.description = "You are standing in an open field west of a white house, with a boarded front door.\nThere is a small mailbox here.";

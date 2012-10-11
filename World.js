@@ -2,13 +2,12 @@
 
 /*
 
-Bag is effectively a mini underscore.js - a collection type that allows for
-filtering and mapped get/set operations. Many operations on Bags are
-chainable. You can also query Bags by property values, similar to a bracket-
-less CSS attribute selector.
-
-When constructing a Bag, you can pass any number of arrays or other Bags, and
-it will combine them all into one flat collection.
+Bag is a kind of limited-use underscore.js - an explicitly-unsorted collection
+type, aimed directly at objects, that allows for filtering and mapped get/set
+operations. Many operations on Bags are chainable. You can also query Bags by
+property values, similar to a bracket-less CSS attribute selector. A Bag is
+an apt metaphor for this: you basically put objects into it and then grope
+around blindly for what you need later on.
 
 */
 var Bag = function(array) {
@@ -220,7 +219,9 @@ Things come with some basic shared utility methods:
 
   - nudge() - feed this an object string from the parser, and it will respond
     with itself if the object "answers" to that name. For simplicity's sake, you
-    can just set this.pattern and use the default nudge function.
+    can just set this.pattern and use the default nudge function. You'll often 
+    invoke nudge() on a Bag of objects to figure out if they respond to a given
+    parser input.
 
   - say() - output to the browser or UI console via the World. Basically used
     as a local output method.
@@ -289,15 +290,18 @@ Thing.prototype = {
 
 Why mutate() all the Things? A couple of reasons:
 
-  * We want to inherit from Thing using good JavaScript prototypes, but calling
-  Thing.call(this) for our super-constructor is annoying--as is the need to
-  constantly check whether the constructor is being called via "new" or via
-  the factory. Using mutate(), we make sure that a fresh type is constructed,
-  but the constructor boilerplate is still abstracted away.
+  First, we want to inherit from Thing using good JavaScript prototypes, but
+  calling Thing.call(this) for our super-constructor is annoying--as is the
+  need to constantly check whether the constructor is being called via "new"
+  or via the factory. Using mutate(), we make sure that a fresh type is
+  constructed, but the constructor boilerplate is still abstracted away. This
+  boilerplate includes one bit of world-building magic: Thing constructors
+  called from a World object will automatically add themselves to it for
+  access via the world's convenience collection methods.
 
-  JavaScript constructor patterns are terrible. This library aims to be, as
-  much as possible, a tool for people who are not JavaScript gurus. As a
-  result, we want to isolate users from the brittleness of constructor
+  Second, JavaScript constructor patterns are terrible. This library aims to
+  be, as much as possible, a tool for people who are not JavaScript gurus. As
+  a result, we want to isolate users from the brittleness of constructor
   function/prototype/prototype.constructor as much as possible. Using mutate()
   (and, more often, using the factory functions via the World object) keeps
   the inheritable madness to a minimum.
@@ -366,7 +370,7 @@ var Container = Thing.mutate('Container', function() {
   });
   this.cue('close', function() {
     this.open = false;
-  })
+  });
 });
 Container.prototype.add = function(item) {
   this.contents.push(item);
@@ -375,16 +379,26 @@ Container.prototype.add = function(item) {
 Container.prototype.remove = function(item) {
   this.contents.remove(item);
   item.parent = null;
-}
-
+};
 
 var Person = Thing.mutate('Person');
 
-var Player = Thing.mutate('Player');
+var Player = Thing.mutate('Player', function() {
+  this.inventory = new Container();
+  this.inventory.open = true;
+});
 
 var Supporter = Thing.mutate('Supporter', function() {
-  this.under = [];
+  this.contents = new Bag();
 });
+Supporter.prototype.add = function(item) {
+  this.contents.push(item);
+  item.parent = this;
+};
+Supporter.prototype.remove = function(item) {
+  this.contents.remove(item);
+  item.parent = null;
+};
 
 var Scenery = Thing.mutate('Scenery', function() {
   this.background = true;
@@ -474,26 +488,26 @@ Parser.prototype = {
   },
   /*
 
-    Rule definitions consist of two parts: a regular expression pattern used
-    to parse out the command, and a translation function that does something
-    based on the parts that are passed back. So you might have a look command:
+  Rule definitions consist of two parts: a regular expression pattern used
+  to parse out the command, and a translation function that does something
+  based on the parts that are passed back. So you might have a look command:
 
-    /(look|examine|describe)\s(at\s)*([\w\s])/i
+  /(look|examine|describe)\s(at\s)*([\w\s])/i
 
-    and then a translator function that turns it into an action:
+  and then a translator function that turns it into an action:
 
-    function(parts) {
-      var verb = 'look';
-      var object = parts[3];
-      //gather items that respond to that name
-      var prospects = world.localThings().invoke('nudge', object);
-      if (prospects.length > 1) {
-        return "I'm not sure which '" + object + "' you mean.";
-      } else if (prospects.length) {
-        return prospects.getAt(0).ask(verb);
-      }
-      return false;
+  function(parts) {
+    var verb = 'look';
+    var object = parts[3];
+    //gather items that respond to that name
+    var prospects = world.localThings().invoke('nudge', object);
+    if (prospects.length > 1) {
+      return "I'm not sure which '" + object + "' you mean.";
+    } else if (prospects.length) {
+      return prospects.getAt(0).ask(verb);
     }
+    return false;
+  }
 
   */
   addRule: function(pattern, translator) {
@@ -508,7 +522,8 @@ Parser.prototype = {
   /*
 
   Rules are evaluated in first-in, first-out order. If no matching rule is
-  found, it returns false.
+  found, it returns false. Rule translation functions are called in the 
+  context of the world.
 
   */
   evaluate: function(input) {
@@ -516,7 +531,7 @@ Parser.prototype = {
       var rule = this.rules[i];
       var matches = rule.pattern.exec(input);
       if (matches) {
-        return rule.translate(matches);
+        return rule.translate.call(this.world, matches);
       }
     }
     return false;
@@ -532,15 +547,16 @@ types, as well as some input and output utility functions.
 */
 var World = function() {
   this.things = [];
-  this.asLocal = [];
   this.player = new Player();
+  this.asLocal = [this.player.inventory];
   this.io = new Console();
   this.parser = new Parser(this, this.io);
   this.currentRoom = null;
 };
 World.prototype = {
   Bag: Bag,
-  Thing: Thing.mutate('Thing'),
+  Thing: Thing.mutate('Thing'), //for base construction
+  mutateThing: Thing.mutate, //for custom construction
   Region: Region,
   Room: Room,
   Player: Player,
