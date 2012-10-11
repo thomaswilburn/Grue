@@ -62,7 +62,7 @@ zork.parser.addRule(/^i(nventory)*$/, function() {
   }
 });
 
-zork.parser.addRule(/go ([\w]+)|(n|north|s|south|e|east|w|west|in|inside|out|outside|up|down)/i, function(match) {
+zork.parser.addRule(/^go ([\w]+)|^(n|north|s|south|e|east|w|west|in|inside|out|outside|up|down)$/i, function(match) {
   zork.currentRoom.ask('go', {direction: match[1] || match[2]});
 });
 
