@@ -90,7 +90,7 @@ field.add(door);
 door.cue('open', "The door cannot be opened.");
 door.cue('cross', "The door is boarded and you can't remove the boards.");
 door.description = "It's all boarded up.";
-door.pattern = /(boarded\s)*(front\s)*door/;
+door.pattern = /(boarded )*(front )*door/;
 
 var northOfHouse = zork.Room();
 northOfHouse.description = "You are facing the north side of a white house. There is no door here, and all the windows are boarded up. To the north a narrow path winds through the trees.";
