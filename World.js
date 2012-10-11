@@ -331,12 +331,8 @@ Thing.mutate = function(tag, f) {
       if (this instanceof World) return new Type(this);
       return new Type();
     }
-    Thing.call(this);
+    Thing.call(this, world);
     f.call(this);
-    if (world) {
-      this.world = world;
-      world.things.push(this);
-    }
   };
   Type.prototype = new Thing();
   Type.prototype.type = tag;
@@ -352,14 +348,12 @@ var Room = Thing.mutate('Room', function() {
   this.cue('contents', function() {
     var contents = this.get('contents').query('type!=Scenery');
     if (contents.length) {
-      var indent = '<li>';
-      return "In this area: <ul>" + indent + this.get('contents').query('type!=Scenery').mapGet('name').join(indent) + "</ul>";
-    } else {
-      return "";
+      return this.world.format.as('list', {label: 'In this area:', data: contents.mapGet('name')} );
     }
+    return "";
   });
   this.cue('look', function() {
-    this.say(this.description + "<br>" + this.ask('contents'));
+    this.say(this.world.format.text(this.description, this.ask('contents')));
   });
   this.cue('go', function(event) {
     var compass = {
@@ -416,11 +410,11 @@ var Container = Thing.mutate('Container', function() {
   this.cue('contents', function() {
     var contents = this.get('contents');
     if (!contents.length) return "";
-    var indent = '<li>';
-    return this.preposition + "<ul>" + indent + this.get('contents').query('type!=Scenery').mapGet('name').join(indent) + "</ul>";
+    var response = this.world.format.as('list', {label: this.preposition, data: contents.mapGet('name')});
+    return response;
   });
   this.cue('look', function() {
-    this.say(this.description + "<br>" + this.ask('contents'));
+    this.say(this.world.format.text(this.description, this.ask('contents')));
   });
 });
 Container.prototype.add = function(item) {
@@ -435,7 +429,7 @@ Container.prototype.remove = function(item) {
 var Person = Thing.mutate('Person');
 
 var Player = Thing.mutate('Player', function() {
-  this.inventory = new Container();
+  this.inventory = new Container(this.world);
   this.inventory.preposition = "In your inventory:";
   this.inventory.open = true;
 });
@@ -591,6 +585,54 @@ Parser.prototype = {
     }
     return false;
   }
+};
+
+/*
+
+I realized, partway through getting the inventory and item listings up, that
+I'm starting to embed a lot of HTML. Now that I use a lot of templates in my
+day job, it's obvious that inline HTML is a serious maintenance code smell.
+Enter the Formatter, which is used by various objects to prepare their output
+in predefined ways. This version still just basically runs off inline HTML,
+but it will be extended to use templates instead.
+
+All Formatter method calls recieve an object with two properties: label and
+data (this should be familiar to AS3 coders). You can replace the Formatter
+with your own object with no problems, as long as your functions can handle
+these two properties.
+
+Although you can call the Formatter methods directly, it probably makes more
+sense to go through Formatter.as(), which takes a string key as the first
+argument. as() can provide fallbacks in case of missing methods, whereas
+calling a missing method is a type error in JavaScript. If you define your own
+format object, just copy Format.as over to your version--it'll still work.
+
+*/
+
+var Formatter = {
+  as: function(type, message) {
+    if (typeof this[type] == 'undefined') {
+      type == 'text';
+    }
+    return this[type](message);
+  },
+  text: function() {
+    var lines = Array.prototype.slice.call(arguments);
+    return lines.join('<br>');
+  },
+  list: function(message) {
+    var output = message.label;
+    output += "<ul>";
+    var data = message.data;
+    if (typeof data == 'string' || typeof data == 'number') {
+      data = [data];
+    }
+    for (var i = 0; i < data.length; i++) {
+      output += "<li>" + data[i] + "</li>";
+    }
+    output += "</ul>";
+    return output;
+  }
 }
 
 /*
@@ -602,11 +644,12 @@ types, as well as some input and output utility functions.
 */
 var World = function() {
   this.things = [];
-  this.player = new Player();
+  this.player = new Player(this);
   this.asLocal = [this.player.inventory];
   this.io = new Console();
   this.parser = new Parser(this, this.io);
   this.currentRoom = null;
+  this.format = Formatter;
 };
 World.prototype = {
   Bag: Bag,
