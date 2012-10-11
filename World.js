@@ -235,7 +235,7 @@ var Thing = function(world) {
       this.say(this.description);
     }
   };
-  this.pattern = /abcdefg/i;
+  this.pattern = /abcdefgh/i;
 
   if (world) {
     this.world = world;
@@ -247,13 +247,15 @@ Thing.prototype = {
   description: "",
   /*
 
-  background is the first of a series of default properties we should decide
-  to have (or not to have). I would love to have these loaded from somewhere
-  else, but I haven't figured that out yet. Worst case scenario, you load
-  these onto Thing.prototype before instantiating your world.
+  background and portable are the first of a series of default properties we
+  should decide to have (or not to have). I would love to have these loaded
+  from somewhere else, but I haven't figured that out yet. Worst case
+  scenario, you load these onto Thing.prototype before instantiating your
+  world.
 
   */
   background: false,
+  portable: false,
 
   get: function(key) {
     if (!this[key]) return null;
@@ -269,10 +271,10 @@ Thing.prototype = {
   proxy: function(key, f) {
     this.proxies[key] = f;
   },
-  ask: function(key) {
+  ask: function(key, event) {
     if (!this.cues[key]) return "";
     if (typeof this.cues[key] == 'function') {
-      var response = this.cues[key].call(this);
+      var response = this.cues[key].call(this, event);
       return response;
     } else {
       var response = this.cues[key];
@@ -347,13 +349,39 @@ var Region = Thing.mutate('Region', function() {
 
 var Room = Thing.mutate('Room', function() {
   this.contents = new Bag();
+  this.portals = new Bag();
   this.cue('contents', function() {
-    var indent = '<li>';
-    return "In this area: <ul>" + indent + this.get('contents').query('type!=Scenery').mapGet('name').join(indent) + "</ul>";
+    var contents = this.get('contents').query('type!=Scenery');
+    if (contents.length) {
+      var indent = '<li>';
+      return "In this area: <ul>" + indent + this.get('contents').query('type!=Scenery').mapGet('name').join(indent) + "</ul>";
+    } else {
+      return "";
+    }
   });
   this.cue('look', function() {
-    this.say(this.description);
-    this.say(this.ask('contents'));
+    this.say(this.description + "<br>" + this.ask('contents'));
+  });
+  this.cue('go', function(event) {
+    var compass = {
+      west: 'w',
+      north: 'n',
+      south: 's',
+      east: 'e',
+      up: 'u',
+      down: 'd',
+      inside: 'in',
+      outside: 'out'
+    }
+    var direction = event.direction;
+    if (compass[direction]) direction = compass[direction];
+    var portal = this.get(direction);
+    if (!portal) {
+      this.say("You can't go that way.");
+    } else {
+      portal.ask('look');
+      this.world.currentRoom = portal;
+    };
   });
 });
 Room.prototype.add = function(item) {
@@ -384,6 +412,7 @@ var Container = Thing.mutate('Container', function() {
   });
   this.cue('close', function() {
     this.open = false;
+    this.say('Closed');
   });
   this.cue('contents', function() {
     var contents = this.get('contents');
@@ -392,8 +421,7 @@ var Container = Thing.mutate('Container', function() {
     return this.preposition + "<ul>" + indent + this.get('contents').query('type!=Scenery').mapGet('name').join(indent) + "</ul>";
   });
   this.cue('look', function() {
-    this.say(this.description);
-    this.say(this.ask('contents'));
+    this.say(this.description + "<br>" + this.ask('contents'));
   });
 });
 Container.prototype.add = function(item) {
@@ -427,7 +455,6 @@ Supporter.prototype.remove = function(item) {
 
 var Scenery = Thing.mutate('Scenery', function() {
   this.background = true;
-  this.movable = false;
 });
 
 /*
@@ -601,7 +628,7 @@ World.prototype = {
   getLocalThings: function() {
     var things = new Bag(this.asLocal);
     if (this.currentRoom) {
-      things.combine(this.currentRoom.contents);
+      things.combine(this.currentRoom.get('contents'));
     }
     var len = things.length;
     for (var i = 0; i < len; i++) {
@@ -611,6 +638,9 @@ World.prototype = {
       }
     }
     return things;
+  },
+  query: function(selector) {
+    return new Bag(this.things).query(selector);
   }
 };
 

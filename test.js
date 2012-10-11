@@ -29,6 +29,8 @@ zork.parser.addRule(/(open|close) ([\s\w]+)/i, function(match) {
   var awake = field.contents.invoke('nudge', match[2]).first();
   if (awake) {
     awake.ask(verb);
+  } else {
+    zork.print("You can't open that.");
   }
 });
 
@@ -40,7 +42,7 @@ zork.parser.addRule(/(take|get|pick up) (\w+)(?: from )*(\w*)/, function(match) 
   });
   allTheThings = zork.Bag(allTheThings);
   var portable = allTheThings.invoke('nudge', match[2]).query('portable=true').first();
-  if (!portable) return zork.print("There's nothing matching that description to take.");
+  if (!portable) return zork.print("You can't take that with you.");
   portable.parent.remove(portable);
   zork.print('Taken');
   this.player.inventory.add(portable);
@@ -58,7 +60,11 @@ zork.parser.addRule(/^i(nventory)*$/, function() {
   } else {
     zork.print(listing);
   }
-})
+});
+
+zork.parser.addRule(/go ([\w]+)|(n|north|s|south|e|east|w|west|in|inside|out|outside|up|down)/i, function(match) {
+  zork.currentRoom.ask('go', {direction: match[1] || match[2]});
+});
 
 var field = zork.Room();
 field.description = "You are standing in an open field west of a white house, with a boarded front door. There is a small mailbox here.";
@@ -85,5 +91,10 @@ door.cue('open', "The door cannot be opened.");
 door.cue('cross', "The door is boarded and you can't remove the boards.");
 door.description = "It's all boarded up.";
 door.pattern = /(boarded\s)*(front\s)*door/;
+
+var northOfHouse = zork.Room();
+northOfHouse.description = "You are facing the north side of a white house. There is no door here, and all the windows are boarded up. To the north a narrow path winds through the trees.";
+field.n = northOfHouse;
+northOfHouse.s = field;
 
 zork.currentRoom.ask('look');

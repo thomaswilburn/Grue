@@ -19,13 +19,22 @@
   box-shadow: inset 0px 0px 32px rgba(255, 255, 255, .6);
   background: black;
   color: #F82;
-  padding: 1em;
   font-family: monospace;
   overflow: auto;
 }
 
 .console-line {
-  margin-bottom: 8px;
+  margin-bottom: 1em;
+  line-height: 1.4;
+  padding: 1em;
+}
+
+.console-line ul {
+  margin: 0;
+}
+
+.console-line:last-child {
+  background: rgba(128, 128, 128, .3);
 }
 
 #input {
