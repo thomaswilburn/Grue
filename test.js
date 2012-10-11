@@ -77,7 +77,7 @@ mailbox.name = "A small mailbox";
 mailbox.description = "It's painted red.";
 mailbox.pattern = /mail(box)*/;
 
-var leaflet = zork.NewThing();
+var leaflet = zork.Thing();
 mailbox.add(leaflet);
 leaflet.cue('read', "WELCOME TO ZORK!\nZORK is a game of adventure, danger, and low cunning. In it you will explore some of the most amazing territory ever seen by mortals. No computer should be without one!");
 leaflet.description = "It looks like some kind of product pitch."
