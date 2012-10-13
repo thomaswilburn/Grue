@@ -644,6 +644,8 @@ And here we are, finally, at the World. You instantiate one (or more) of these
 for your game, and then it provides factory access to the different object
 types, as well as some input and output utility functions.
 
+If you have 
+
 */
 var World = function() {
   this.things = [];
@@ -653,11 +655,19 @@ var World = function() {
   this.parser = new Parser(this, this.io);
   this.currentRoom = null;
   this.format = Formatter;
+
+  //Grue uses AMD to load its base rules without excessive hackery.
+  var self = this;
+  if (require && define) {
+    require(['Grue/BaseRules'], function(BaseRules) {
+      BaseRules.init(self);
+    });
+  }
 };
 World.prototype = {
   Bag: Bag,
   Thing: Thing.mutate('Thing'), // Exposed to create plain "Things"
-  mutate: Thing.mutate, // Exposed for creating new Things--needs to be cleaned up for real factory creation.
+  mutate: Thing.mutate, //Exposed for mutation
   Region: Region,
   Room: Room,
   Player: Player,
@@ -689,8 +699,19 @@ World.prototype = {
   }
 };
 
-if (typeof define !== 'undefined') {
-  define(function() {
+/*
+
+I recommend using AMD modules to load Grue, but it's not a hard and fast
+requirement. It registers itself as Grue, but returns the World constructor.
+See test.js for an example of doing this properly.
+
+If you don't include some kind of AMD loader, however, the base rules aren't
+going to load, so you'd better like writing parser vocabulary.
+
+*/
+
+if (require && define) {
+  define('Grue', function() {
     return World;
   });
 } else {

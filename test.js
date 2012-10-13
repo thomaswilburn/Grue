@@ -3,6 +3,12 @@
 //on the back end. Later on, many of the rules tested here will be moved into
 //a "base rules" file that you can import before writing your code.
 
+//We're switching to AMD modules because they make loading the dependencies
+//much, much easier compared to my original thought (manually hooking
+//everything together using a few global scope objects--ugly!).
+
+require(['Grue'], function(World) {
+
 var zork = new World();
 
 // Set up our UI
@@ -14,63 +20,6 @@ zork.io.attach(input, output);
 zork.io.onUpdate = function() {
   output.scrollTop = output.scrollHeight - output.offsetHeight;
 }
-
-// These are the basic parsing rules for interacting with the world. Once
-// these are stable and generic, I'll move them into a separate base rules
-// file, the same way Inform7 has a base set of rules governing how items
-// work.
-
-zork.parser.addRule(/(look|examine|describe)( at )*([\w\s]+)*/i, function(match) {
-  var awake = this.currentRoom.contents.invoke('nudge', match[3]).first();
-  if (!awake && match[3]) return false;
-  if (awake) {
-    awake.ask('look');
-  } else if (!match[3]) {
-    this.currentRoom.ask('look');
-  }
-});
-
-zork.parser.addRule(/(open|close) ([\s\w]+)/i, function(match) {
-  var verb = match[1];
-  var awake = field.contents.invoke('nudge', match[2]).first();
-  if (awake) {
-    awake.ask(verb);
-  } else {
-    zork.print("You can't open that.");
-  }
-});
-
-zork.parser.addRule(/(take|get|pick up) (\w+)(?: from )*(\w*)/, function(match) {
-  var allTheThings = field.contents.toArray();
-  var containers = field.query('type="Container",open=true');
-  containers.each(function(c) {
-    allTheThings = allTheThings.concat(c.contents.toArray());
-  });
-  allTheThings = zork.Bag(allTheThings);
-  var portable = allTheThings.invoke('nudge', match[2]).query('portable=true').first();
-  if (!portable) return zork.print("You can't take that with you.");
-  portable.parent.remove(portable);
-  zork.print('Taken');
-  this.player.inventory.add(portable);
-});
-
-zork.parser.addRule(/read ([\w\s]+\w)/, function(match) {
-  var awake = zork.getLocalThings().invoke('nudge', match[1]).first();
-  awake.ask('read');
-});
-
-zork.parser.addRule(/^i(nventory)*$/, function() {
-  var listing = zork.player.inventory.ask('contents');
-  if (!listing) {
-    zork.print("You're not carrying anything.");
-  } else {
-    zork.print(listing);
-  }
-});
-
-zork.parser.addRule(/^go ([\w]+)|^(n|north|s|south|e|east|w|west|in|inside|out|outside|up|down)$/i, function(match) {
-  zork.currentRoom.ask('go', {direction: match[1] || match[2]});
-});
 
 // Here's where the real definition of our world begins. We start by creating
 // a "room" and setting it as our world's current location.
@@ -124,3 +73,5 @@ northOfHouse.s = field;
 // Let's start off by looking around to set the scene.
 
 zork.currentRoom.ask('look');
+
+});
