@@ -658,7 +658,7 @@ var World = function() {
 
   //Grue uses AMD to load its base rules without excessive hackery.
   var self = this;
-  if (require && define) {
+  if (typeof require !== 'undefined' && typeof define !== 'undefined') {
     require(['Grue/BaseRules'], function(BaseRules) {
       BaseRules.init(self);
     });
@@ -710,7 +710,7 @@ going to load, so you'd better like writing parser vocabulary.
 
 */
 
-if (require && define) {
+if (typeof require !== 'undefined' && typeof define !== 'undefined') {
   define('Grue', function() {
     return World;
   });
