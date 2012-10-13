@@ -38,7 +38,11 @@ define('Grue/BaseRules', {
 
     world.parser.addRule(/read ([\w\s]+\w)/, function(match) {
       var awake = world.getLocalThings().invoke('nudge', match[1]).first();
-      awake.ask('read');
+      if (awake) {
+        awake.ask('read');
+      } else {
+        world.print("I don't think you can read that right now.")
+      }
     });
 
     world.parser.addRule(/^i(nventory)*$/, function() {
