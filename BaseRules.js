@@ -1,5 +1,38 @@
 define('Grue/BaseRules', {
 
+  /*
+
+  To match Zork, we need:
+    north/northeast/east/southeast/south/southwest/west/northwest
+    up/down
+    look
+    save/restore (?)
+    restart
+    verbose
+    score
+    diagnostic
+
+    take [all]
+    throw X at Y
+    open X
+    read X
+    drop X
+    put X in Y
+    turn X with Y
+    turn on X
+    turn off X
+    move X
+    attack X with Y
+    examine X
+    inventory
+    eat X
+    shout
+    close X
+    tie X to Y
+    kill self with X
+
+  */
+
   init: function(world) {
 
     world.parser.addRule(/(look|examine|describe)( at )*([\w\s]+)*/i, function(match) {
