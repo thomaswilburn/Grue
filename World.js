@@ -644,8 +644,6 @@ And here we are, finally, at the World. You instantiate one (or more) of these
 for your game, and then it provides factory access to the different object
 types, as well as some input and output utility functions.
 
-If you have 
-
 */
 var World = function() {
   this.things = [];
