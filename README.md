@@ -22,7 +22,7 @@ Currently, there are five files that load up the test environment:
 * almond.js - a small AMD loader by James Burke, used by Grue to load the base ruleset without strongly coupling them together.
 * index.html - loads all of the above, and provides a retro-styled interface for the Grue console.
 
-You can view a live version of the current Grue test environment by [visiting the demo page](//thomaswilburn.github.com/Grue).
+You can view a live version of the current Grue test environment by [visiting the demo page](http://thomaswilburn.github.com/Grue).
 
 My current approach is to write in test.js according to the API I want to see, then do work in the other files to make that API occur--a kind of test-driven development, I guess. I still have to do a bit more work before everything is stable, but at the moment it's enough to build rooms, populate them with objects, and connect them to each other.
 
