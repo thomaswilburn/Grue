@@ -10,6 +10,10 @@
   -webkit-box-sizing: border-box;
 }
 
+body {
+  font-family: tahoma, verdana, arial;
+}
+
 #output {
   width: 100%;
   height: 400px;
@@ -58,13 +62,14 @@
   </style>
 </head>
 <body>
-  This space intentionally left blank.
-  <br><br>
-  <i>(of course)</i>
+  <h1>Grue: Interactive Fiction for JavaScript</h1>
+  <p>
+  <p>This space intentionally left blank.
   <div id="output">
 
   </div>
-  <input id="input">
+  <input id="input" placeholder='enter command here (look, open, take, go, etc.)'>
+  <p class=trackback>Check out the source for Grue <a href="https://github.com/thomaswilburn/Grue">here</a>.
   <script src="almond.js"></script>
   <script src="World.js"></script>
   <script src="BaseRules.js"></script>
