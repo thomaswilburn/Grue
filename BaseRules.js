@@ -36,7 +36,13 @@ define('Grue/BaseRules', {
   init: function(world) {
 
     world.parser.addRule(/(look|examine|describe)( at )*([\w\s]+)*/i, function(match) {
-      var awake = world.currentRoom.contents.invoke('nudge', match[3]).first();
+      world.askLocal('look', match[3]);
+      return;
+
+
+      if (!world.currentRoom.check('look')) return;
+
+      var awake = world.getLocalThings().nudge(match[3]).first();
       if (!awake && match[3]) return false;
       if (awake) {
         awake.ask('look');
@@ -47,7 +53,7 @@ define('Grue/BaseRules', {
 
     world.parser.addRule(/(open|close) ([\s\w]+)/i, function(match) {
       var verb = match[1];
-      var awake = world.currentRoom.contents.invoke('nudge', match[2]).first();
+      var awake = world.getLocalThings().nudge(match[2]).first();
       if (awake) {
         awake.ask(verb);
       } else {
@@ -56,13 +62,13 @@ define('Grue/BaseRules', {
     });
 
     world.parser.addRule(/(take|get|pick up) (\w+)(?: from )*(\w*)/, function(match) {
-      var allTheThings = world.currentRoom.contents.toArray();
+      /*var allTheThings = world.currentRoom.contents.toArray();
       var containers = world.currentRoom.query('type="Container",open=true');
       containers.each(function(c) {
         allTheThings = allTheThings.concat(c.contents.toArray());
-      });
-      allTheThings = world.Bag(allTheThings);
-      var portable = allTheThings.invoke('nudge', match[2]).query('portable=true').first();
+      });*/
+      var allTheThings = world.getLocalThings('portable=true');
+      var portable = allTheThings.nudge(match[2]).first();
       if (!portable) return world.print("You can't take that with you.");
       portable.parent.remove(portable);
       world.print('Taken.');
@@ -70,11 +76,25 @@ define('Grue/BaseRules', {
     });
 
     world.parser.addRule(/read ([\w\s]+\w)/, function(match) {
-      var awake = world.getLocalThings().invoke('nudge', match[1]).first();
+      var awake = world.getLocalThings().nudge(match[1]).first();
       if (awake) {
         awake.ask('read');
       } else {
         world.print("I don't think you can read that right now.")
+      }
+    });
+
+    world.parser.addRule("turn :item on", function(matches) {
+      var awake = world.getLocalThings().nudge(matches.item).first();
+      if (awake) {
+        awake.ask('activate');
+      }
+    });
+
+    world.parser.addRule("turn :item off", function(matches) {
+      var awake = world.getLocalThings().nudge(matches.item).first();
+      if (awake) {
+        awake.ask('deactivate');
       }
     });
 

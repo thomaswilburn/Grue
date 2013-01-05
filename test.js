@@ -70,6 +70,45 @@ northOfHouse.description = "You are facing the north side of a white house. Ther
 field.n = northOfHouse;
 northOfHouse.s = field;
 
+// Hey, how about a darkness (magic missile sold separately!)
+
+var lantern = zork.Thing();
+lantern.pattern = /(brass )*lantern/;
+lantern.name = "Brass lantern";
+lantern.cue('activate', function() {
+  this.say("The lantern flickers on, shedding a reluctant light on your surroundings.");
+  this.on = true;
+});
+lantern.cue('deactivate', function() {
+  this.say("The lantern's glow fades, sputters, and dies.")
+  this.on = false;
+});
+lantern.on = false;
+lantern.portable = true;
+lantern.description = "It's a classy-looking lantern";
+lantern.cue('look', function() {
+  this.say("The lantern is currently " + (this.on ? "lit" : "dark") + ".");
+});
+northOfHouse.add(lantern);
+
+var darkness = zork.Thing();
+darkness.cue('look', function() {
+  if (zork.player.inventory.contents.contains(lantern) && lantern.on) {
+    return;
+  }
+  zork.print("It's too dark. You might get eaten by a grue.");
+  return false;
+});
+
+// We need some places to be dark, then.
+
+var forest = zork.Room();
+forest.description = "It's a very nice forest. A bit dark, though.";
+forest.s = northOfHouse;
+northOfHouse.n = forest;
+forest.e = forest.w;
+forest.regions.add(darkness);
+
 // Let's start off by looking around to set the scene.
 
 zork.currentRoom.ask('look');

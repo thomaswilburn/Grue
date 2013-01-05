@@ -26,6 +26,7 @@ Bag.prototype.push = function() {
   this.length = this.items.length;
   return this;
 };
+Bag.prototype.add = Bag.prototype.push;
 Bag.prototype.remove = function(item) {
   var remaining = [];
   for (var i = 0; i < this.items.length; i++) {
@@ -41,6 +42,9 @@ Bag.prototype.first = function() {
 Bag.prototype.at = function(n) {
   return this.items[n];
 };
+Bag.prototype.contains = function(o) {
+  return this.items.indexOf(o) != -1;
+};
 Bag.prototype.filter = function(f) {
   var filtered = [];
   for (var i = 0; i < this.items.length; i++) {
@@ -51,6 +55,9 @@ Bag.prototype.filter = function(f) {
 Bag.prototype.map = function(f) {
   var mapped = this.items.map(f);
   return new Bag(mapped);
+};
+Bag.prototype.reduce = function(f, initial) {
+  return this.items.reduce(f, initial);
 };
 Bag.prototype.mapGet = function(p) {
   return this.items.map(function(item) {
@@ -82,6 +89,13 @@ Bag.prototype.each = function(f) {
   }
   return this;
 };
+Bag.prototype.some = function(f) {
+  for (var i = 0; i < this.items.length; i++) {
+    var result = f(this.items[i]);
+    if (result === false) break;
+  }
+  return this;
+}
 Bag.prototype.toArray = function() {
   return this.items;
 };
@@ -339,11 +353,8 @@ Thing.mutate = function(tag, f) {
   return Type;
 };
 
-var Region = Thing.mutate('Region', function() {
-  this.rooms = new Bag();
-});
-
 var Room = Thing.mutate('Room', function() {
+  this.regions = new Bag();
   this.contents = new Bag();
   this.cue('contents', function() {
     var contents = this.get('contents').query('type!=Scenery');
@@ -372,8 +383,8 @@ var Room = Thing.mutate('Room', function() {
     if (!portal) {
       this.say("You can't go that way.");
     } else {
-      portal.ask('look');
       this.world.currentRoom = portal;
+      if (portal.check('look')) portal.ask('look');
     };
   });
 });
@@ -388,6 +399,21 @@ Room.prototype.remove = function(item) {
 Room.prototype.query = function(selector) {
   return this.contents.query(selector);
 };
+/*
+
+  Rooms have a "regions" Bag that you can use to share rules across a zone.
+  Regions are not actually containers--they're just Things that respond to
+  ask() with false if the command is being intercepted. Any rules that can be
+  preempted by a region, such as "look," should call World.currentRoom.check()
+  the same way that they would call ask() on a target object first.
+
+*/
+Room.prototype.check = function(key, event) {
+  var cancelled = this.regions.reduce(function(memo, region) {
+    return region.ask(key, event) !== false && memo;
+  }, true);
+  return cancelled;
+}
 
 var Container = Thing.mutate('Container', function() {
   this.contents = new Bag();
@@ -720,7 +746,6 @@ World.prototype = {
   Bag: Bag,
   Thing: Thing.mutate('Thing'), // Exposed to create plain "Things"
   mutate: Thing.mutate, //Exposed for mutation
-  Region: Region,
   Room: Room,
   Player: Player,
   Container: Container,
@@ -732,7 +757,7 @@ World.prototype = {
   considerLocal: function(bag) {
     this.asLocal.push(bag);
   },
-  getLocalThings: function() {
+  getLocalThings: function(query) {
     var things = new Bag(this.asLocal);
     if (this.currentRoom) {
       things.combine(this.currentRoom.get('contents'));
@@ -740,14 +765,32 @@ World.prototype = {
     var len = things.length;
     for (var i = 0; i < len; i++) {
       var item = things.at(i);
-      if (item instanceof Container || item instanceof Supporter) {
+      if ((item instanceof Container && item.open) || item instanceof Supporter) {
         things.combine(item.get('contents'));
       }
     }
+    if (query) {
+      things = things.query(query);
+    }
+    things.nudge = function(keyword) {
+      return this.invoke('nudge', keyword);
+    };
     return things;
   },
   query: function(selector) {
     return new Bag(this.things).query(selector);
+  },
+  askLocal: function(verb, object) {
+    var allowed = this.currentRoom.check(verb);
+    if (!allowed) {
+      return;
+    }
+    var awake = this.getLocalThings().nudge(object);
+    if (awake.length) {
+      awake.first().ask(verb);
+    } else {
+      this.currentRoom.ask(verb);
+    }
   }
 };
 
