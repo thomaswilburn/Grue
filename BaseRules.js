@@ -65,7 +65,7 @@ define('Grue/BaseRules', {
       var portable = allTheThings.invoke('nudge', match[2]).query('portable=true').first();
       if (!portable) return world.print("You can't take that with you.");
       portable.parent.remove(portable);
-      world.print('Taken');
+      world.print('Taken.');
       this.player.inventory.add(portable);
     });
 
@@ -89,6 +89,14 @@ define('Grue/BaseRules', {
 
     world.parser.addRule(/^go ([\w]+)|^(n|north|s|south|e|east|w|west|in|inside|out|outside|up|down)$/i, function(match) {
       world.currentRoom.ask('go', {direction: match[1] || match[2]});
+    });
+
+    world.parser.addRule("drop :item", function(match) {
+      var dropped = this.player.inventory.contents.invoke('nudge', match.item).first();
+      if (!dropped) return world.print("You don't have any of those.");
+      this.player.inventory.remove(dropped);
+      this.currentRoom.add(dropped);
+      world.print("Dropped.");
     });
 
   }

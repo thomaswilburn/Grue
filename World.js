@@ -405,7 +405,7 @@ var Container = Thing.mutate('Container', function() {
   });
   this.cue('close', function() {
     this.open = false;
-    this.say('Closed');
+    this.say('Closed.');
   });
   this.cue('contents', function() {
     var contents = this.get('contents');
@@ -561,16 +561,70 @@ Parser.prototype = {
     return false;
   }
 
+  If you pass a String instead of a regular expression to addRule, it will
+  attempt to compile it using a simple parameter conversion. See compileRule()
+  below for more details.
+
   */
   addRule: function(pattern, responder) {
     if (typeof pattern == 'string') {
-      pattern = new RegExp(pattern);
+      this.rules.push(this.compileRule(pattern, responder));
+    } else {
+      this.rules.push({
+        pattern: pattern,
+        responder: responder
+      });
     }
-    this.rules.push({
-      pattern: pattern,
-      responder: responder
-    });
   },
+
+  /*
+
+  Many commands are simple enough that you shouldn't need to write regular
+  expressions for them. The parser will try to compile a space-delimited
+  string into a regular expression for you, using a simple, route-like syntax.
+  For example, we might write:
+
+  attack :monster with? :weapon?
+
+  Words preceded with a colon are named parameters, and those followed with a
+  question mark are optional. Even though JavaScript's regular expression
+  engine lacks named parameters, we can fake it by wrapping the responder in a
+  function that adds our parameters to the match array.
+
+  */
+
+  compileRule: function(pattern, responder) {
+    var words = pattern.split(' ');
+    var positions = [];
+    for (var i = 0; i < words.length; i++) {
+      var original = words[i];
+      words[i] = original.replace(/[?:]/g, '');
+      positions[i] = false;
+      if (original.substr(0, 1) == ':') {
+        positions[i] = words[i];
+        words[i] = "\\w+";
+      }
+      words[i] = "(" + words[i].replace('?', '') + ")";
+      if (original.substr(-1) == "?") {
+        words[i] += "*";
+      }
+    }
+    var compiled = new RegExp(words.join('\\s*'));
+    var filter = function(matches) {
+      for (var i = 0; i < positions.length; i++) {
+        if (positions[i]) {
+          var name = positions[i];
+          matches[name] = matches[i + 1];
+        }
+      }
+      responder.call(this, matches);
+    }
+    return {
+      pattern: compiled,
+      responder: filter
+    }
+  },
+
   /*
 
   Rules are evaluated in first-in, first-out order. If no matching rule is
