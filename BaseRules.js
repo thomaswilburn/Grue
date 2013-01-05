@@ -33,22 +33,20 @@ define('Grue/BaseRules', {
 
   */
 
+  /*
+
+  Placing the rules in the init property of this object is partly a response
+  to the way RequireJS works, but it also has the side-effect of letting us
+  segment rules into groups: some of which exist at the start, both others
+  that we could call later on, in response to rule changes.
+
+  */
+
   init: function(world) {
 
     world.parser.addRule(/(look|examine|describe)( at )*([\w\s]+)*/i, function(match) {
       world.askLocal('look', match[3]);
       return;
-
-
-      if (!world.currentRoom.check('look')) return;
-
-      var awake = world.getLocalThings().nudge(match[3]).first();
-      if (!awake && match[3]) return false;
-      if (awake) {
-        awake.ask('look');
-      } else if (!match[3]) {
-        this.currentRoom.ask('look');
-      }
     });
 
     world.parser.addRule(/(open|close) ([\s\w]+)/i, function(match) {

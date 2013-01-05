@@ -1,5 +1,7 @@
 (function() {
 
+var requireExists = typeof window.define != 'function' && typeof window.require == 'function';
+
 /*
 
 Bag is a kind of limited-use underscore.js - an explicitly-unsorted collection
@@ -734,9 +736,10 @@ var World = function() {
   this.currentRoom = null;
   this.format = Formatter;
 
-  //Grue uses AMD to load its base rules without excessive hackery.
+  //Grue uses AMD to load its base rules without excessive hackery. 
+  //Note: it would be nice to be more careful with their existence.
   var self = this;
-  if (typeof require !== 'undefined' && typeof define !== 'undefined') {
+  if (requireExists) {
     require(['Grue/BaseRules'], function(BaseRules) {
       BaseRules.init(self);
     });
@@ -805,7 +808,7 @@ going to load, so you'd better like writing parser vocabulary.
 
 */
 
-if (typeof require !== 'undefined' && typeof define !== 'undefined') {
+if (requireExists) {
   define('Grue', function() {
     return World;
   });
