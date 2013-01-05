@@ -1,6 +1,6 @@
 (function() {
 
-var requireExists = typeof window.define != 'function' && typeof window.require == 'function';
+var requireExists = typeof window.define == 'function' && typeof window.require == 'function';
 
 /*
 
