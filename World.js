@@ -604,7 +604,7 @@ Parser.prototype = {
         positions[i] = words[i];
         words[i] = "\\w+";
       }
-      words[i] = "(" + words[i].replace('?', '') + ")";
+      words[i] = "(" + words[i] + ")";
       if (original.substr(-1) == "?") {
         words[i] += "*";
       }
