@@ -98,6 +98,7 @@ define('Grue/BaseRules', {
       var portable = world.getLocal('portable=true', match[2]);
       if (!portable) return world.print("You can't take that with you.");
       portable.parent.remove(portable);
+      portable.ask('taken');
       world.print('Taken.');
       this.player.inventory.add(portable);
     });
@@ -107,6 +108,7 @@ define('Grue/BaseRules', {
       if (!dropped) return world.print("You don't have any of those.");
       this.player.inventory.remove(dropped);
       this.currentRoom.add(dropped);
+      dropped.ask('dropped');
       world.print("Dropped.");
     });
 

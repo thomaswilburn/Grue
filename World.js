@@ -791,8 +791,8 @@ World.prototype = {
       return;
     }
     var awake = this.getLocal(false, object);
-    if (awake.length) {
-      awake.first().ask(verb);
+    if (awake) {
+      awake.ask(verb);
     }
   }
 };
