@@ -790,7 +790,7 @@ World.prototype = {
     if (!allowed) {
       return;
     }
-    var awake = this.getLocalThings(false, object);
+    var awake = this.getLocal(false, object);
     if (awake.length) {
       awake.first().ask(verb);
     }
