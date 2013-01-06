@@ -103,10 +103,10 @@ darkness.cue('look', function() {
 // We need some places to be dark, then.
 
 var forest = zork.Room();
-forest.description = "It's a very nice forest. A bit dark, though.";
+forest.description = "It's a very nice forest, with paths in every direction. A bit dark though. It'd be easy to get lost.";
 forest.s = northOfHouse;
 northOfHouse.n = forest;
-forest.e = forest.w;
+forest.e = forest.n = forest.w = forest;
 forest.regions.add(darkness);
 
 // Let's start off by looking around to set the scene.

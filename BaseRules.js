@@ -45,13 +45,17 @@ define('Grue/BaseRules', {
   init: function(world) {
 
     world.parser.addRule(/(look|examine|describe)( at )*([\w\s]+)*/i, function(match) {
-      world.askLocal('look', match[3]);
-      return;
+      var object = match[3];
+      if (object) {
+        world.askLocal('look', match[3]);  
+      } else if (world.currentRoom.check('look')) {
+        world.currentRoom.ask('look');
+      }
     });
 
     world.parser.addRule(/(open|close) ([\s\w]+)/i, function(match) {
       var verb = match[1];
-      var awake = world.getLocalThings().nudge(match[2]).first();
+      var awake = world.getLocal(false, match[2]);
       if (awake) {
         awake.ask(verb);
       } else {
@@ -59,22 +63,8 @@ define('Grue/BaseRules', {
       }
     });
 
-    world.parser.addRule(/(take|get|pick up) (\w+)(?: from )*(\w*)/, function(match) {
-      /*var allTheThings = world.currentRoom.contents.toArray();
-      var containers = world.currentRoom.query('type="Container",open=true');
-      containers.each(function(c) {
-        allTheThings = allTheThings.concat(c.contents.toArray());
-      });*/
-      var allTheThings = world.getLocalThings('portable=true');
-      var portable = allTheThings.nudge(match[2]).first();
-      if (!portable) return world.print("You can't take that with you.");
-      portable.parent.remove(portable);
-      world.print('Taken.');
-      this.player.inventory.add(portable);
-    });
-
     world.parser.addRule(/read ([\w\s]+\w)/, function(match) {
-      var awake = world.getLocalThings().nudge(match[1]).first();
+      var awake = world.getLocal(false, match[1]);
       if (awake) {
         awake.ask('read');
       } else {
@@ -83,17 +73,41 @@ define('Grue/BaseRules', {
     });
 
     world.parser.addRule("turn :item on", function(matches) {
-      var awake = world.getLocalThings().nudge(matches.item).first();
+      var awake = world.getLocal(false, matches.item);
       if (awake) {
         awake.ask('activate');
+      } else {
+        world.print('Turn what on?');
       }
     });
 
     world.parser.addRule("turn :item off", function(matches) {
-      var awake = world.getLocalThings().nudge(matches.item).first();
+      var awake = world.getLocal(false, matches.item);
       if (awake) {
         awake.ask('deactivate');
+      } else {
+        world.print('Turn what off?');
       }
+    });
+
+    world.parser.addRule(/^go ([\w]+)|^(n|north|s|south|e|east|w|west|in|inside|out|outside|up|down)$/i, function(match) {
+      world.currentRoom.ask('go', {direction: match[1] || match[2]});
+    });
+
+    world.parser.addRule(/(take|get|pick up) (\w+)(?: from )*(\w*)/, function(match) {
+      var portable = world.getLocal('portable=true', match[2]);
+      if (!portable) return world.print("You can't take that with you.");
+      portable.parent.remove(portable);
+      world.print('Taken.');
+      this.player.inventory.add(portable);
+    });
+
+    world.parser.addRule("drop :item", function(match) {
+      var dropped = this.player.inventory.contents.invoke('nudge', match.item).first();
+      if (!dropped) return world.print("You don't have any of those.");
+      this.player.inventory.remove(dropped);
+      this.currentRoom.add(dropped);
+      world.print("Dropped.");
     });
 
     world.parser.addRule(/^i(nventory)*$/, function() {
@@ -103,18 +117,6 @@ define('Grue/BaseRules', {
       } else {
         world.print(listing);
       }
-    });
-
-    world.parser.addRule(/^go ([\w]+)|^(n|north|s|south|e|east|w|west|in|inside|out|outside|up|down)$/i, function(match) {
-      world.currentRoom.ask('go', {direction: match[1] || match[2]});
-    });
-
-    world.parser.addRule("drop :item", function(match) {
-      var dropped = this.player.inventory.contents.invoke('nudge', match.item).first();
-      if (!dropped) return world.print("You don't have any of those.");
-      this.player.inventory.remove(dropped);
-      this.currentRoom.add(dropped);
-      world.print("Dropped.");
     });
 
   }

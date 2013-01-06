@@ -623,13 +623,12 @@ Parser.prototype = {
 
   compileRule: function(pattern, responder) {
     var words = pattern.split(' ');
-    var positions = [];
+    var positions = {};
     for (var i = 0; i < words.length; i++) {
       var original = words[i];
       words[i] = original.replace(/[?:]/g, '');
-      positions[i] = false;
       if (original.substr(0, 1) == ':') {
-        positions[i] = words[i];
+        positions[words[i]] = i + 1;
         words[i] = "\\w+";
       }
       words[i] = "(" + words[i] + ")";
@@ -639,11 +638,8 @@ Parser.prototype = {
     }
     var compiled = new RegExp(words.join('\\s*'));
     var filter = function(matches) {
-      for (var i = 0; i < positions.length; i++) {
-        if (positions[i]) {
-          var name = positions[i];
-          matches[name] = matches[i + 1];
-        }
+      for (var key in positions) {
+        matches[key] = matches[positions[key]];
       }
       responder.call(this, matches);
     }
@@ -760,7 +756,7 @@ World.prototype = {
   considerLocal: function(bag) {
     this.asLocal.push(bag);
   },
-  getLocalThings: function(query) {
+  getLocal: function(query, target, multiple) {
     var things = new Bag(this.asLocal);
     if (this.currentRoom) {
       things.combine(this.currentRoom.get('contents'));
@@ -778,6 +774,12 @@ World.prototype = {
     things.nudge = function(keyword) {
       return this.invoke('nudge', keyword);
     };
+    if (target) {
+      if (multiple) {
+        return things.nudge(target);
+      }
+      return things.nudge(target).first();
+    }
     return things;
   },
   query: function(selector) {
@@ -788,11 +790,9 @@ World.prototype = {
     if (!allowed) {
       return;
     }
-    var awake = this.getLocalThings().nudge(object);
+    var awake = this.getLocalThings(false, object);
     if (awake.length) {
       awake.first().ask(verb);
-    } else {
-      this.currentRoom.ask(verb);
     }
   }
 };
